@@ -22,6 +22,30 @@ export default function Login() {
     }
 
     const ok = await login(email, password);
+    
+    // after firebase sign-in succeeds:
+const token = await user.getIdToken();
+
+try {
+  const r = await fetch("/api/ensureUser", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name: user.displayName || "", email: user.email || "" }),
+  });
+
+  const data = await r.json();
+  if (!r.ok) {
+    console.warn("ensureUser failed:", data);
+    // show toast: "Logged in, but wallet sync failed"
+  }
+} catch (e) {
+  console.warn("ensureUser network error:", e);
+}
+
+    
     if (!ok) {
       setError("Invalid email or password");
       return;

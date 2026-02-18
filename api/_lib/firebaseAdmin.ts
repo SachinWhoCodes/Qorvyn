@@ -1,18 +1,32 @@
-import { getApps, initializeApp, cert } from "firebase-admin/app";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
-export function getAdmin() {
-  if (!getApps().length) {
-    const privateKey = (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey,
-      }),
-    });
-  }
-  return { auth: getAuth(), db: getFirestore() };
+function env(name: string) {
+  return (process.env[name] || "").trim();
 }
+
+const projectId = env("FIREBASE_PROJECT_ID");
+const clientEmail = env("FIREBASE_CLIENT_EMAIL");
+const privateKeyRaw = env("FIREBASE_PRIVATE_KEY");
+// supports both formats: actual newlines OR \n
+const privateKey = privateKeyRaw.includes("\\n")
+  ? privateKeyRaw.replace(/\\n/g, "\n")
+  : privateKeyRaw;
+
+export const adminReady = Boolean(projectId && clientEmail && privateKey);
+
+if (!getApps().length && adminReady) {
+  initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+  });
+}
+
+export const authAdmin = adminReady ? getAuth() : null;
+export const dbAdmin = adminReady ? getFirestore() : null;
+export const ServerValue = FieldValue;
 
