@@ -1,5 +1,5 @@
-import { getAdmin } from "./_lib/firebaseAdmin";
-import { requireUser, requireAdminEmail } from "./_lib/auth";
+import { getAdmin } from "./_lib/firebaseAdmin.js";
+import { requireUser, requireAdminEmail } from "./_lib/auth.js";
 
 export default async function handler(req: any, res: any) {
   try {
