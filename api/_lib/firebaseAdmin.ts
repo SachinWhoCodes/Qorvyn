@@ -30,3 +30,10 @@ export const authAdmin = adminReady ? getAuth() : null;
 export const dbAdmin = adminReady ? getFirestore() : null;
 export const ServerValue = FieldValue;
 
+export function getAdmin() {
+  return {
+    auth: authAdmin,
+    db: dbAdmin,
+  };
+}
+

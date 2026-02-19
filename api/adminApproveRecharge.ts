@@ -14,6 +14,7 @@ export default async function handler(req: any, res: any) {
     if (!id) return res.status(400).json({ error: "Missing request id" });
 
     const { db } = getAdmin();
+    if (!db) return res.status(500).json({ error: "Firebase not configured" });
     const reqRef = db.collection("rechargeRequests").doc(id);
 
     await db.runTransaction(async (tx) => {

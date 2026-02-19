@@ -1,4 +1,4 @@
-import { authAdmin, dbAdmin, adminReady, ServerValue } from "./_lib/firebaseAdmin";
+import { authAdmin, dbAdmin, adminReady, ServerValue } from "./_lib/firebaseAdmin.js";
 
 export default async function handler(req: any, res: any) {
   try {

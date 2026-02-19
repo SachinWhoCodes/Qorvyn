@@ -11,6 +11,7 @@ export default async function handler(req: any, res: any) {
     const amount = Math.max(1, Math.min(10, Number(body?.amount ?? 1)));
 
     const { db } = getAdmin();
+    if (!db) return res.status(500).json({ error: "Firebase not configured" });
     const userRef = db.collection("users").doc(decoded.uid);
 
     const nextCredits = await db.runTransaction(async (tx) => {

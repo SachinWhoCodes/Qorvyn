@@ -17,6 +17,7 @@ export default async function handler(req: any, res: any) {
     if (!utr) return res.status(400).json({ error: "Transaction ID (UTR) is required" });
 
     const { db } = getAdmin();
+    if (!db) return res.status(500).json({ error: "Firebase not configured" });
 
     const doc = await db.collection("rechargeRequests").add({
       uid: decoded.uid,

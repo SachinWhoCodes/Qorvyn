@@ -13,6 +13,7 @@ export default async function handler(req: any, res: any) {
     if (!name) return res.status(400).json({ error: "Name required" });
 
     const { db } = getAdmin();
+    if (!db) return res.status(500).json({ error: "Firebase not configured" });
     await db.collection("users").doc(decoded.uid).set({ name, updatedAt: new Date() }, { merge: true });
 
     return res.json({ ok: true });

@@ -9,6 +9,7 @@ export default async function handler(req: any, res: any) {
     requireAdminEmail(decoded.email);
 
     const { db } = getAdmin();
+    if (!db) return res.status(500).json({ error: "Firebase not configured" });
     const snap = await db.collection("rechargeRequests").orderBy("createdAt", "desc").limit(200).get();
 
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));

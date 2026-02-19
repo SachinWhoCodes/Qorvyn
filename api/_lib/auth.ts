@@ -1,12 +1,12 @@
-import { getAdmin } from "./firebaseAdmin";
+import { authAdmin } from "./firebaseAdmin";
 
 export async function requireUser(req: any) {
   const header = req.headers?.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) throw Object.assign(new Error("Unauthorized"), { status: 401 });
 
-  const { auth } = getAdmin();
-  const decoded = await auth.verifyIdToken(token);
+  if (!authAdmin) throw Object.assign(new Error("Firebase not configured"), { status: 500 });
+  const decoded = await authAdmin.verifyIdToken(token);
   return decoded;
 }
 
