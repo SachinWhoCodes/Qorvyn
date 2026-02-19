@@ -177,10 +177,11 @@ export function CopilotProvider({ children }: { children: React.ReactNode }) {
           json: { transcript },
         });
 
-        setKnowledgeCards(Array.isArray(data.knowledgeCards) ? data.knowledgeCards : []);
-        setPredictedPaths(Array.isArray(data.predictedPaths) ? data.predictedPaths : []);
-        setTalkingPoints(Array.isArray(data.talkingPoints) ? data.talkingPoints : []);
-        setFollowUps(Array.isArray(data.followUps) ? data.followUps : []);
+        // Ensure all responses are arrays, even if API returns null/undefined
+        setKnowledgeCards(Array.isArray(data?.knowledgeCards) ? data.knowledgeCards : []);
+        setPredictedPaths(Array.isArray(data?.predictedPaths) ? data.predictedPaths : []);
+        setTalkingPoints(Array.isArray(data?.talkingPoints) ? data.talkingPoints : []);
+        setFollowUps(Array.isArray(data?.followUps) ? data.followUps : []);
 
         lastUpdateAtRef.current = Date.now();
       } catch (e: any) {
