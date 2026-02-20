@@ -15,6 +15,72 @@ function safeJsonParse(text: string) {
   try { return JSON.parse(text); } catch { return null; }
 }
 
+function extractJsonObject(text: string): any | null {
+  // Models sometimes return extra text. Try to extract the first JSON object.
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first === -1 || last === -1 || last <= first) return null;
+  const slice = text.slice(first, last + 1);
+  return safeJsonParse(slice);
+}
+
+function clamp01to100(n: any, fallback = 50) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(x)));
+}
+
+function toStringArray(v: any, max = 12): string[] {
+  if (Array.isArray(v)) {
+    return v
+      .map((x) => String(x ?? "").trim())
+      .filter(Boolean)
+      .slice(0, max);
+  }
+  if (typeof v === "string") {
+    const s = v.trim();
+    return s ? [s] : [];
+  }
+  return [];
+}
+
+function normalizeResponse(input: any) {
+  const obj = input && typeof input === "object" ? input : {};
+
+  const knowledgeCards = Array.isArray(obj.knowledgeCards) ? obj.knowledgeCards : [];
+  const predictedPaths = Array.isArray(obj.predictedPaths) ? obj.predictedPaths : [];
+  const talkingPoints = Array.isArray(obj.talkingPoints) ? obj.talkingPoints : [];
+  const followUps = Array.isArray(obj.followUps) ? obj.followUps : [];
+
+  return {
+    knowledgeCards: knowledgeCards.slice(0, 8).map((c: any, idx: number) => ({
+      id: String(c?.id || `card-${idx}`),
+      emoji: String(c?.emoji || "💡"),
+      title: String(c?.title || ""),
+      content: toStringArray(c?.content, 10),
+      tags: toStringArray(c?.tags, 10),
+      sources: toStringArray(c?.sources, 6),
+      confidence: clamp01to100(c?.confidence, 70),
+    })),
+    predictedPaths: predictedPaths.slice(0, 8).map((p: any, idx: number) => ({
+      text: String(p?.text || ""),
+      probability: clamp01to100(p?.probability, 60),
+      why: String(p?.why || p?.reason || ""),
+    })),
+    talkingPoints: talkingPoints.slice(0, 8).map((t: any, idx: number) => {
+      const toneRaw = String(t?.tone || "neutral").toLowerCase();
+      const tone = (toneRaw === "curious" || toneRaw === "confident" || toneRaw === "neutral") ? toneRaw : "neutral";
+      return {
+        text: String(t?.text || ""),
+        tone,
+      };
+    }),
+    followUps: followUps.slice(0, 10).map((f: any, idx: number) => ({
+      text: String(f?.text || ""),
+    })),
+  };
+}
+
 export default async function handler(req: any, res: any) {
   try {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -32,7 +98,7 @@ export default async function handler(req: any, res: any) {
     const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 
     const system = `
-Return STRICT JSON only (no markdown).
+Return STRICT JSON only (no markdown, no prose).
 Schema:
 {
  "knowledgeCards":[{"id":"topic|happening|glossary|background|tradeoffs","emoji":"", "title":"", "content":[...], "tags":[...], "sources":[...], "confidence": 0-100}],
@@ -43,6 +109,7 @@ Schema:
 Rules:
 - Keep content concise and immediately usable.
 - If unsure, lower confidence.
+- "content", "tags", "sources" MUST be ARRAYS of strings.
 `;
 
     const userPrompt = `Transcript:\n${transcript}\n\nGenerate live context + next likely paths + what the user can say next.`;
@@ -82,7 +149,7 @@ Rules:
 
         const data = safeJsonParse(raw);
         const content = data?.choices?.[0]?.message?.content || "";
-        const json = safeJsonParse(content);
+        const json = safeJsonParse(content) || extractJsonObject(String(content));
 
         if (!json) {
           return res.json({
@@ -101,7 +168,7 @@ Rules:
           });
         }
 
-        return res.json(json);
+        return res.json(normalizeResponse(json));
       } catch (e: any) {
         lastErr = e;
         continue;

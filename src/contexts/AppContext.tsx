@@ -265,8 +265,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // ensure user doc exists (server)
-      await apiFetch("/api/ensureUser", { method: "POST", json: {} });
+      // Ensure user doc exists (server). If this fails, don't block login UI.
+      try {
+        await apiFetch("/api/ensureUser", { method: "POST", json: {} });
+      } catch (e) {
+        console.error("ensureUser failed during login:", e);
+      }
       return true;
     } catch {
       return false;
@@ -277,7 +281,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName: name });
-      await apiFetch("/api/ensureUser", { method: "POST", json: { name } });
+      // Ensure user doc exists (server). If this fails, the account still exists in Auth.
+      try {
+        await apiFetch("/api/ensureUser", { method: "POST", json: { name } });
+      } catch (e) {
+        console.error("ensureUser failed during register:", e);
+      }
 
       setShowOnboarding(true);
       return true;

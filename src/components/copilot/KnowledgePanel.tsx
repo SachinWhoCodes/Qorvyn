@@ -71,7 +71,24 @@ export function KnowledgePanel() {
         {sortedCards.map((card) => {
           const isPinned = !!pinned[card.id];
           const isExpanded = !!expanded[card.id];
-          const displayContent = isExpanded ? card.content : card.content.slice(0, 3);
+          // Defensive: protect UI from malformed LLM payloads (e.g. content as string).
+          const safeContent = Array.isArray(card.content)
+            ? card.content
+            : typeof (card as any).content === "string"
+              ? [(card as any).content]
+              : [];
+          const safeTags = Array.isArray(card.tags)
+            ? card.tags
+            : typeof (card as any).tags === "string"
+              ? [(card as any).tags]
+              : [];
+          const safeSources = Array.isArray(card.sources)
+            ? card.sources
+            : typeof (card as any).sources === "string"
+              ? [(card as any).sources]
+              : [];
+
+          const displayContent = isExpanded ? safeContent : safeContent.slice(0, 3);
 
           return (
             <div
@@ -92,7 +109,7 @@ export function KnowledgePanel() {
                     <Pin className={`w-3 h-3 ${isPinned ? "text-primary fill-primary" : "text-muted-foreground"}`} />
                   </button>
 
-                  {card.content.length > 3 && (
+                  {safeContent.length > 3 && (
                     <button onClick={() => toggleExpand(card.id)} className="p-0.5 rounded hover:bg-muted transition-colors">
                       {isExpanded ? <Minimize2 className="w-3 h-3 text-muted-foreground" /> : <Maximize2 className="w-3 h-3 text-muted-foreground" />}
                     </button>
@@ -100,9 +117,9 @@ export function KnowledgePanel() {
                 </div>
               </div>
 
-              {card.tags?.length ? (
+              {safeTags.length ? (
                 <div className="flex gap-1 mb-1.5 flex-wrap">
-                  {card.tags.slice(0, 8).map(tag => (
+                  {safeTags.slice(0, 8).map(tag => (
                     <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                       {tag}
                     </span>
@@ -114,16 +131,16 @@ export function KnowledgePanel() {
                 {displayContent.map((item, i) => (
                   <li key={i} className="text-xs text-foreground/80 leading-relaxed">{item}</li>
                 ))}
-                {!isExpanded && card.content.length > 3 && (
+                {!isExpanded && safeContent.length > 3 && (
                   <li className="text-[10px] text-muted-foreground cursor-pointer hover:text-primary" onClick={() => toggleExpand(card.id)}>
-                    +{card.content.length - 3} more…
+                    +{safeContent.length - 3} more…
                   </li>
                 )}
               </ul>
 
               <div className="flex items-center justify-between mt-2 gap-2">
                 <div className="flex gap-1 flex-wrap">
-                  {card.sources?.slice(0, 4).map(s => (
+                  {safeSources.slice(0, 4).map(s => (
                     <span key={s} className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{s}</span>
                   ))}
                 </div>

@@ -93,6 +93,70 @@ function nowTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
+// --- Defensive normalizers ---
+// The LLM may occasionally return an unexpected shape (e.g., `content` as a string).
+// If we don't normalize, a `.map()` call in the UI can crash the whole app.
+function toStringArray(v: any, max = 12): string[] {
+  if (Array.isArray(v)) {
+    return v
+      .map((x) => String(x ?? "").trim())
+      .filter(Boolean)
+      .slice(0, max);
+  }
+  if (typeof v === "string") {
+    const s = v.trim();
+    return s ? [s] : [];
+  }
+  return [];
+}
+
+function clamp01to100(n: any, fallback = 70): number {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(x)));
+}
+
+function normalizePayload(data: any) {
+  const obj = data && typeof data === "object" ? data : {};
+
+  const knowledgeCards: KnowledgeCard[] = (Array.isArray(obj.knowledgeCards) ? obj.knowledgeCards : [])
+    .slice(0, 8)
+    .map((c: any, idx: number) => ({
+      id: String(c?.id || `card-${idx}`),
+      emoji: String(c?.emoji || "💡"),
+      title: String(c?.title || ""),
+      content: toStringArray(c?.content, 10),
+      tags: toStringArray(c?.tags, 10),
+      sources: toStringArray(c?.sources, 6),
+      confidence: clamp01to100(c?.confidence, 70),
+    }));
+
+  const predictedPaths: PredictedPath[] = (Array.isArray(obj.predictedPaths) ? obj.predictedPaths : [])
+    .slice(0, 10)
+    .map((p: any, idx: number) => ({
+      text: String(p?.text || ""),
+      probability: clamp01to100(p?.probability, 60),
+      why: String(p?.why || p?.reason || ""),
+      id: String(p?.id || `path-${idx}`),
+    }))
+    // `id` isn't in the type, but harmless. We'll strip via mapping below.
+    .map((p: any) => ({ text: p.text, probability: p.probability, why: p.why }));
+
+  const talkingPoints: TalkingPoint[] = (Array.isArray(obj.talkingPoints) ? obj.talkingPoints : [])
+    .slice(0, 10)
+    .map((t: any) => {
+      const raw = String(t?.tone || "neutral").toLowerCase();
+      const tone: TalkingPoint["tone"] = raw === "curious" || raw === "confident" || raw === "neutral" ? raw : "neutral";
+      return { text: String(t?.text || ""), tone };
+    });
+
+  const followUps: FollowUp[] = (Array.isArray(obj.followUps) ? obj.followUps : [])
+    .slice(0, 10)
+    .map((f: any) => ({ text: String(f?.text || "" ) }));
+
+  return { knowledgeCards, predictedPaths, talkingPoints, followUps };
+}
+
 export function CopilotProvider({ children }: { children: React.ReactNode }) {
   const { isListening } = useApp();
 
@@ -177,11 +241,11 @@ export function CopilotProvider({ children }: { children: React.ReactNode }) {
           json: { transcript },
         });
 
-        // Ensure all responses are arrays, even if API returns null/undefined
-        setKnowledgeCards(Array.isArray(data?.knowledgeCards) ? data.knowledgeCards : []);
-        setPredictedPaths(Array.isArray(data?.predictedPaths) ? data.predictedPaths : []);
-        setTalkingPoints(Array.isArray(data?.talkingPoints) ? data.talkingPoints : []);
-        setFollowUps(Array.isArray(data?.followUps) ? data.followUps : []);
+        const normalized = normalizePayload(data);
+        setKnowledgeCards(normalized.knowledgeCards);
+        setPredictedPaths(normalized.predictedPaths);
+        setTalkingPoints(normalized.talkingPoints);
+        setFollowUps(normalized.followUps);
 
         lastUpdateAtRef.current = Date.now();
       } catch (e: any) {
